@@ -88,17 +88,14 @@ while True:
                 text = re.sub(r"[^A-Z0-9\.\-]", "", text.upper()).strip()
 
                 # Chuẩn hóa biển số
-                if len(text) >= 6:
+                if len(text) >= 6 and text != last_text:
                     if "-" not in text and "." not in text and len(text) >= 8:
                         if text[2].isalpha() and text[3].isdigit():
                             text = text[:2] + text[2] + "-" + text[3:]
                         elif text[3].isalpha() and text[4].isdigit():
                             text = text[:3] + "-" + text[3:]
 
-                    # In ra mỗi khi phát hiện (kể cả biển số giống)
-                    if text != last_text:
-                        print(f"Đã phát hiện: {text}")
-
+                    print(f"Đã phát hiện: {text}")
                     last_text = text
                     last_time = current_time
 
