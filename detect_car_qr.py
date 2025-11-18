@@ -4,6 +4,7 @@ import imutils
 import numpy as np
 import re
 import time
+from pyzbar import pyzbar
 
 # Cấu hình Tesseract
 pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
@@ -11,16 +12,22 @@ custom_config = (
     r"--oem 3 --psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-"
 )
 
-# Biến kiểm soát
+# Biến kiểm soát - Biển số xe
 last_text = ""
 last_time = 0
 PROCESS_INTERVAL = 0.5  # Xử lý mỗi 0.5 giây (giảm tải CPU)
+
+# Biến kiểm soát - QR Code
+last_qr_data = ""
+last_qr_time = 0
+QR_COOLDOWN = 1.0  # Chỉ in QR mỗi 1 giây
 
 cap = cv2.VideoCapture(0)
 cap.set(3, 640)
 cap.set(4, 480)
 
-print("Quét biển số liên tục... (Nhấn 'q' để thoát)")
+print("Quét biển số xe & QR Code... (Nhấn 'q' để thoát)")
+print("=" * 60)
 
 while True:
     ret, frame = cap.read()
@@ -31,6 +38,43 @@ while True:
     display = frame.copy()
 
     current_time = time.time()
+
+    # ============ QUÉT QR CODE ============
+    qr_codes = pyzbar.decode(frame)
+    qr_detected = False
+
+    if qr_codes:
+        qr_detected = True
+        for qr in qr_codes:
+            # Lấy dữ liệu QR
+            qr_data = qr.data.decode("utf-8")
+            qr_type = qr.type
+
+            # Lấy vị trí QR code
+            (qx, qy, qw, qh) = qr.rect
+
+            # Vẽ khung đỏ quanh QR code
+            cv2.rectangle(display, (qx, qy), (qx + qw, qy + qh), (0, 0, 255), 3)
+
+            # Hiển thị dữ liệu QR
+            qr_text = f"QR: {qr_data[:30]}"  # Giới hạn 30 ký tự
+            cv2.putText(
+                display,
+                qr_text,
+                (qx, qy - 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 0, 255),
+                2,
+            )
+
+            # In ra terminal
+            if qr_data != last_qr_data or (current_time - last_qr_time) >= QR_COOLDOWN:
+                print(f"[QR] Phát hiện {qr_type}: {qr_data}")
+                last_qr_data = qr_data
+                last_qr_time = current_time
+
+    # ============ NHẬN DIỆN BIỂN SỐ XE ============
 
     # Chỉ xử lý OCR mỗi 0.5s
     if current_time - last_time >= PROCESS_INTERVAL:
@@ -88,35 +132,39 @@ while True:
                 text = re.sub(r"[^A-Z0-9\.\-]", "", text.upper()).strip()
 
                 # Chuẩn hóa biển số
-                if len(text) >= 6 and text != last_text:
+                if len(text) >= 6:
                     if "-" not in text and "." not in text and len(text) >= 8:
                         if text[2].isalpha() and text[3].isdigit():
                             text = text[:2] + text[2] + "-" + text[3:]
                         elif text[3].isalpha() and text[4].isdigit():
                             text = text[:3] + "-" + text[3:]
 
-                    print(f"Đã phát hiện: {text}")
+                    # In ra mỗi khi phát hiện (kể cả biển số giống)
+                    if text != last_text:
+                        print(f"[BIỂN SỐ] Phát hiện: {text}")
+
                     last_text = text
                     last_time = current_time
 
+                    # Hiển thị biển số ở góc trên bên trái
                     cv2.putText(
                         display,
-                        f"{text}",
-                        (10, 50),
+                        f"Bien so: {text}",
+                        (10, 30),
                         cv2.FONT_HERSHEY_SIMPLEX,
-                        1.1,
+                        0.8,
                         (0, 255, 255),
-                        3,
+                        2,
                     )
                 break  # Chỉ xử lý 1 biển số mỗi khung
 
         if not plate_found:
             cv2.putText(
                 display,
-                "Dang quet...",
-                (10, 50),
+                "Dang quet bien so...",
+                (10, 30),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.8,
+                0.6,
                 (255, 255, 0),
                 2,
             )
@@ -125,23 +173,36 @@ while True:
         if last_text and current_time - last_time < 2.0:
             cv2.putText(
                 display,
-                f"{last_text}",
-                (10, 50),
+                f"Bien so: {last_text}",
+                (10, 30),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                1.1,
+                0.8,
                 (0, 255, 255),
-                3,
+                2,
             )
         else:
             cv2.putText(
                 display,
-                "Dang quet...",
-                (10, 50),
+                "Dang quet bien so...",
+                (10, 30),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.8,
+                0.6,
                 (255, 255, 0),
                 2,
             )
+
+    # ============ HIỂN THỊ TRẠNG THÁI ============
+    # Trạng thái QR
+    if qr_detected:
+        status_qr = f"QR: Phat hien ({len(qr_codes)})"
+        color_qr = (0, 255, 0)
+    else:
+        status_qr = "QR: Dang tim..."
+        color_qr = (128, 128, 128)
+
+    cv2.putText(
+        display, status_qr, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color_qr, 2
+    )
 
     # Hiển thị FPS
     fps = 1.0 / (time.time() - current_time + 0.001)
@@ -155,7 +216,7 @@ while True:
         2,
     )
 
-    cv2.imshow("Bien so REALTIME - Raspi 4", display)
+    cv2.imshow("Nhan dien Bien so & QR Code", display)
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break

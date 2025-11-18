@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nhận diện Biển số & QR Code</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .video-section {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .video-section h2 {
+            margin-bottom: 15px;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #video-stream {
+            width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .card h3 {
+            margin-bottom: 15px;
+            color: #667eea;
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #f7f9fc;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .status-label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .status-value {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 1.1em;
+        }
+
+        .history-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+            background: #f7f9fc;
+            transition: transform 0.2s;
+        }
+
+        .history-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .history-item.qr {
+            border-left-color: #dc3545;
+        }
+
+        .history-item.plate {
+            border-left-color: #28a745;
+        }
+
+        .history-type {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 5px;
+        }
+
+        .history-type.plate {
+            background: #28a745;
+        }
+
+        .history-type.qr {
+            background: #dc3545;
+        }
+
+        .history-content {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+            margin: 5px 0;
+        }
+
+        .history-time {
+            font-size: 0.85em;
+            color: #999;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .stat-box {
+            text-align: center;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        /* Scrollbar styling */
+        .history-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .history-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .history-list::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 10px;
+        }
+
+        .history-list::-webkit-scrollbar-thumb:hover {
+            background: #764ba2;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .history-item {
+            animation: fadeIn 0.3s ease-out;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🚗 HỆ THỐNG NHẬN DIỆN THÔNG MINH</h1>
+            <p>Nhận diện Biển số xe & QR Code realtime</p>
+        </header>
+
+        <div class="main-content">
+            <!-- Video Stream -->
+            <div class="video-section">
+                <h2>📹 Camera Stream</h2>
+                <img id="video-stream" src="{{ url_for('video_feed') }}" alt="Video Stream">
+            </div>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Current Status -->
+                <div class="card">
+                    <h3>📊 Trạng thái hiện tại</h3>
+                    <div class="status-item">
+                        <span class="status-label">🚗 Biển số:</span>
+                        <span class="status-value" id="current-plate">Đang quét...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">📱 QR Code:</span>
+                        <span class="status-value" id="current-qr">Đang quét...</span>
+                    </div>
+                </div>
+
+                <!-- Statistics -->
+                <div class="card">
+                    <h3>📈 Thống kê</h3>
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <span class="stat-number" id="total-count">0</span>
+                            <span class="stat-label">Tổng</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-number" id="plate-count">0</span>
+                            <span class="stat-label">Biển số</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-number" id="qr-count">0</span>
+                            <span class="stat-label">QR Code</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History -->
+                <div class="card">
+                    <h3>📜 Lịch sử phát hiện</h3>
+                    <div class="history-list" id="history-list">
+                        <p style="text-align: center; color: #999;">Chưa có dữ liệu...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Cập nhật dữ liệu mỗi 1 giây
+        function updateData() {
+            fetch('/api/history')
+                .then(response => response.json())
+                .then(data => {
+                    // Cập nhật trạng thái hiện tại
+                    document.getElementById('current-plate').textContent = data.last_plate;
+                    document.getElementById('current-qr').textContent = data.last_qr;
+
+                    // Cập nhật lịch sử
+                    const historyList = document.getElementById('history-list');
+                    if (data.history.length > 0) {
+                        historyList.innerHTML = data.history.map(item => `
+                            <div class="history-item ${item.type.toLowerCase()}">
+                                <span class="history-type ${item.type.toLowerCase()}">${item.type}</span>
+                                <div class="history-content">${item.content}</div>
+                                <div class="history-time">🕐 ${item.timestamp}</div>
+                            </div>
+                        `).join('');
+                    }
+                });
+
+            fetch('/api/stats')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('total-count').textContent = data.total_detections;
+                    document.getElementById('plate-count').textContent = data.plate_count;
+                    document.getElementById('qr-count').textContent = data.qr_count;
+                });
+        }
+
+        // Cập nhật ngay khi load trang
+        updateData();
+
+        // Cập nhật mỗi giây
+        setInterval(updateData, 1000);
+    </script>
+</body>
+
+</html>
